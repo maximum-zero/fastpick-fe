@@ -1,0 +1,19 @@
+import axios from 'axios';
+
+const axiosInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true,
+});
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      alert('인증이 필요합니다.');
+      // 로그인 페이지로 리디렉션 또는 리프레시 토큰 처리 로직
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axiosInstance;
