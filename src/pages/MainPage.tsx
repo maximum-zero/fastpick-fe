@@ -1,4 +1,4 @@
-import { useState, ChangeEvent, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useMemo } from "react";
 import { InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import {
   fetchCoupons,
@@ -8,13 +8,14 @@ import {
 } from "@/api/coupon";
 import HeroSection from "@/components/features/HeroSection";
 import CouponCard from "@/components/features/CouponCard";
+import CouponCardSkeleton from "@/components/features/CouponCardSkeleton"; // 분리된 스켈레톤 임포트
 import { Search } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 
 const filterOptions: { label: string; value: CouponFilterType }[] = [
   { label: "전체", value: "ALL" },
+  { label: "발급 중", value: "ISSUING" },
   { label: "예정", value: "READY" },
-  { label: "진행중", value: "ISSUING" },
   { label: "종료", value: "CLOSED" },
 ];
 
@@ -22,10 +23,10 @@ const MainPage = () => {
   /* --- State --- */
   const [inputValue, setInputValue] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [filterType, setFilterType] = useState<CouponFilterType>("ALL");
+  const [filterType, setFilterType] = useState<CouponFilterType>("ISSUING");
 
-  /* --- Infinite Scroll Setting --- */
-  const { ref, inView } = useInView({ threshold: 0.5 });
+  /* --- Infinite Scroll --- */
+  const { ref, inView } = useInView({ threshold: 0.1 });
 
   const {
     data,
@@ -47,15 +48,15 @@ const MainPage = () => {
     getNextPageParam: (lastPage) =>
       lastPage.last ? undefined : lastPage.number + 1,
     initialPageParam: 0,
+    gcTime: 0,
   });
 
   /* --- Event Handlers --- */
-  const handleFilterClick = (type: CouponFilterType) => setFilterType(type);
+  const handleFilterClick = (type: CouponFilterType) => {
+    setFilterType(type);
+    window.scrollTo(0, 0);
+  };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) =>
-    setInputValue(e.target.value);
-
-  // 엔터 또는 검색 버튼 클릭 시에만 검색 실행
   const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSearchQuery(inputValue);
@@ -63,19 +64,28 @@ const MainPage = () => {
 
   /* --- Side Effects --- */
   useEffect(() => {
-    if (inView && hasNextPage) fetchNextPage();
-  }, [inView, hasNextPage, fetchNextPage]);
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   /* --- Data Processing --- */
-  // 각 페이지의 content 배열을 단일 배열로 평탄화
-  const allCoupons: Coupon[] = data?.pages
-    ? data.pages.flatMap((page) => page.content)
-    : [];
+  const allCoupons = useMemo(() => {
+    if (!data?.pages) return [];
+    const flatList = data.pages.flatMap((page) => page.content);
+
+    const seen = new Set();
+    return flatList.filter((coupon) => {
+      if (seen.has(coupon.id)) return false;
+      seen.add(coupon.id);
+      return true;
+    });
+  }, [data?.pages]);
 
   if (isError)
     return (
-      <div className="p-20 text-center text-red-500 font-mono">
-        ERROR: Failed to load coupons.
+      <div className="p-20 text-center text-red-500 font-mono text-sm uppercase tracking-widest">
+        ERROR: Failed to load data.
       </div>
     );
 
@@ -84,68 +94,71 @@ const MainPage = () => {
       <HeroSection />
 
       <div className="mx-auto py-12">
-        {/* Search Bar */}
+        {/* Search Section */}
         <form
           onSubmit={handleSearchSubmit}
-          className="mb-12 flex items-center border-b border-black focus-within:border-b-2 transition-all duration-200 group"
+          className="mb-16 flex items-center border-b border-black transition-all duration-300"
         >
           <input
             type="text"
-            placeholder="검색어를 입력해주세요..."
-            className="flex-grow outline-none text-black placeholder-gray-400 py-4 bg-transparent text-lg"
+            placeholder="찾으시는 브랜드나 쿠폰을 입력하세요"
+            className="flex-grow outline-none text-black placeholder-gray-300 py-5 bg-transparent text-xl font-light tracking-tight"
             value={inputValue}
-            onChange={handleSearchChange}
+            onChange={(e) => setInputValue(e.target.value)}
           />
           <button
             type="submit"
-            className="p-2 text-black hover:opacity-50"
-            aria-label="검색"
+            className="p-4 text-black hover:opacity-50 transition-opacity"
           >
-            <Search size={24} strokeWidth={1.5} />
+            <Search size={28} strokeWidth={1} />
           </button>
         </form>
 
         {/* Filter Tabs */}
-        <div className="flex space-x-6 mb-8 overflow-x-auto border-b border-gray-100">
+        <div className="flex space-x-12 mb-12 overflow-x-auto no-scrollbar border-b border-gray-100">
           {filterOptions.map((option) => (
             <button
               key={option.value}
               onClick={() => handleFilterClick(option.value)}
-              className={`pb-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-200
-                ${filterType === option.value ? "text-black border-black" : "text-gray-400 border-transparent hover:text-gray-600"}`}
+              className={`pb-4 text-[13px] font-black tracking-widest uppercase border-b-2 transition-all duration-300
+                ${filterType === option.value ? "text-black border-black" : "text-gray-300 border-transparent hover:text-gray-500"}`}
             >
               {option.label}
             </button>
           ))}
         </div>
 
-        <h1 className="text-2xl font-black mb-8 tracking-tighter text-black uppercase">
-          Coupon List
-        </h1>
+        <h2 className="text-[24px] font-black mb-10 tracking-tighter text-black uppercase border-l-4 border-black pl-4">
+          쿠폰 목록
+        </h2>
 
         {/* Coupon Grid */}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-x-8 gap-y-16">
           {isLoading && !isFetchingNextPage ? (
-            // Skeleton Loader
-            Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse bg-gray-50 h-64 border border-gray-100"
-              />
+            Array.from({ length: 6 }).map((_, i) => (
+              <CouponCardSkeleton key={i} />
             ))
           ) : allCoupons.length > 0 ? (
             allCoupons.map((coupon: Coupon) => (
               <CouponCard key={coupon.id} coupon={coupon} />
             ))
           ) : (
-            <p className="col-span-full text-center py-20 text-gray-400 font-light">
-              찾으시는 쿠폰이 없습니다.
-            </p>
+            <div className="col-span-full py-40 text-center border border-dashed border-gray-100">
+              <p className="text-gray-300 font-bold tracking-widest uppercase">
+                쿠폰이 존재하지 않습니다.
+              </p>
+            </div>
           )}
         </div>
 
         {/* Infinite Scroll Trigger */}
-        <div ref={ref} className="h-20" />
+        <div ref={ref} className="h-40 flex items-center justify-center">
+          {isFetchingNextPage && (
+            <span className="text-[10px] font-black tracking-[0.3em] uppercase animate-pulse">
+              Loading More...
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

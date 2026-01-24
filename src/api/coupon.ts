@@ -1,25 +1,19 @@
-import axiosInstance from './axiosInstance';
-
-// API 응답의 공통 형식
-interface ApiResponse<T> {
-  code: string;
-  message: string;
-  data: T;
-}
+import axiosInstance from "./axiosInstance";
+import { ApiResponse } from "./common";
 
 // 쿠폰 필터 타입
-export type CouponFilterType = 'ALL' | 'READY' | 'ISSUING' | 'CLOSED';
+export type CouponFilterType = "ALL" | "READY" | "ISSUING" | "CLOSED";
 
 // 단일 쿠폰 정보
 export interface Coupon {
   id: number;
+  brand: string;
   title: string;
+  summary: string;
   totalQuantity: number;
   issuedQuantity: number;
   startAt: string;
   endAt: string;
-  // 추가적으로 필요한 필드를 여기에 정의합니다. (예: description, imageUrl 등)
-  description?: string;
   imageUrl?: string;
 }
 
@@ -81,4 +75,13 @@ export const getCouponDetail = async (id: number): Promise<Coupon> => {
     `/api/v1/coupons/${id}`,
   );
   return response.data.data;
+};
+
+/**
+ * 쿠폰을 발급받는 API
+ * @param couponId 쿠폰 ID
+ * @returns Promise<void>
+ */
+export const issueCoupon = async (couponId: number): Promise<void> => {
+  await axiosInstance.post("/api/v1/coupon-issues", { couponId });
 };
