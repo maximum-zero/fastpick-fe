@@ -1,8 +1,15 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import useAuthStore from "@/stores/authStore";
 
 const Header = () => {
-  const [isLoggedIn] = useState(false);
+  const { isAuthenticated, user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login"); // 또는 "/" 홈 페이지로 리디렉션
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
@@ -14,18 +21,37 @@ const Header = () => {
           FastPick
         </Link>
 
-        <div>
-          {isLoggedIn ? (
-            <Link
-              to="/mypage"
-              className="text-[12px] font-bold text-black border-b border-black pb-0.5 tracking-widest uppercase"
-            >
-              My Page
-            </Link>
+        <div className="flex items-center space-x-4">
+          {isAuthenticated ? (
+            <>
+              <Link
+                to="/mypage"
+                className="text-[12px] font-bold text-black border-b border-black pb-0.5 tracking-widest uppercase"
+              >
+                My Page
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-[12px] font-bold bg-black text-white tracking-widest uppercase px-5 py-2 rounded-sm hover:bg-gray-800 transition-all duration-300"
+              >
+                Logout
+              </button>
+            </>
           ) : (
-            <button className="text-[12px] font-bold text-black tracking-widest uppercase border border-black px-5 py-2 hover:bg-black hover:text-white transition-all duration-300">
-              Login
-            </button>
+            <>
+              <Link
+                to="/login"
+                className="text-[12px] font-bold text-black border-b border-black pb-0.5 tracking-widest uppercase"
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="text-[12px] font-bold bg-black text-white tracking-widest uppercase px-5 py-2 rounded-sm hover:bg-gray-800 transition-all duration-300"
+              >
+                Join
+              </Link>
+            </>
           )}
         </div>
       </nav>
