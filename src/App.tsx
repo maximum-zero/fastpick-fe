@@ -8,6 +8,7 @@ import DetailPage from "./pages/DetailPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import useAuthStore from "./stores/authStore";
+import MyPage from "./pages/MyPage";
 
 function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
@@ -31,6 +32,7 @@ function App() {
           <Route path="/coupon/:id" element={<DetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/mypage" element={<MyPage />} />
         </Routes>
       </main>
     </QueryProvider>
